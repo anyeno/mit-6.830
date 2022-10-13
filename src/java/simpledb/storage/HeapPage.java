@@ -76,8 +76,7 @@ public class HeapPage implements Page {
      */
     private int getNumTuples() {
         // TODO: some code goes here
-        return 0;
-
+        return Math.floorDiv (BufferPool.getPageSize() * 8 , this.td.getSize() * 8 + 1) ;
     }
 
     /**
@@ -88,8 +87,7 @@ public class HeapPage implements Page {
     private int getHeaderSize() {
 
         // TODO: some code goes here
-        return 0;
-
+        return (int)Math.ceil((double)this.getNumTuples() / 8);
     }
 
     /**
@@ -122,7 +120,7 @@ public class HeapPage implements Page {
      */
     public HeapPageId getId() {
         // TODO: some code goes here
-        throw new UnsupportedOperationException("implement this");
+        return pid;
     }
 
     /**
@@ -286,7 +284,7 @@ public class HeapPage implements Page {
     public TransactionId isDirty() {
         // TODO: some code goes here
         // Not necessary for lab1
-        return null;      
+        return null;
     }
 
     /**
@@ -294,7 +292,16 @@ public class HeapPage implements Page {
      */
     public int getNumUnusedSlots() {
         // TODO: some code goes here
-        return 0;
+        int res = 0;
+        for (int i = 0; i < header.length; i++) {
+            byte t = header[i];
+            for (int j = 0; j < 8; j++) {
+                if((t&1) == 0) res++;
+                t = (byte) (t>>1);
+            }
+        }
+
+        return res;
     }
 
     /**
@@ -302,6 +309,11 @@ public class HeapPage implements Page {
      */
     public boolean isSlotUsed(int i) {
         // TODO: some code goes here
+        if(i < numSlots) {
+            int a = i / 8;
+            int b = i % 8;
+            return ((header[a] >> b) & 1) == 1;
+        }
         return false;
     }
 
@@ -319,8 +331,19 @@ public class HeapPage implements Page {
      */
     public Iterator<Tuple> iterator() {
         // TODO: some code goes here
-        return null;
+        return new Iterator<Tuple>() {
+            int cur = -1;
+            @Override
+            public boolean hasNext() {
+                return cur + 1 < numSlots && isSlotUsed(cur + 1);
+            }
+
+            @Override
+            public Tuple next() {
+                cur ++;
+                return tuples[cur];
+            }
+        };
     }
 
 }
-

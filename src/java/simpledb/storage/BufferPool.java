@@ -38,6 +38,9 @@ public class BufferPool {
      */
     public static final int DEFAULT_PAGES = 50;
 
+    private int numPages;
+    private ArrayList<Page> pages;
+
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
@@ -45,6 +48,8 @@ public class BufferPool {
      */
     public BufferPool(int numPages) {
         // TODO: some code goes here
+        this.numPages = numPages;
+        pages = new ArrayList<>();
     }
 
     public static int getPageSize() {
@@ -79,7 +84,16 @@ public class BufferPool {
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
             throws TransactionAbortedException, DbException {
         // TODO: some code goes here
-        return null;
+        for(Page p: pages) {
+            if(p.getId().equals(pid)) {
+                return p;
+            }
+        }
+        if(pages.size() == numPages)
+            throw new DbException("驱逐策略\n");
+        Page res = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
+        pages.add(res);
+        return res;
     }
 
     /**

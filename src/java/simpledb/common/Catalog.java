@@ -2,6 +2,7 @@ package simpledb.common;
 
 import simpledb.storage.DbFile;
 import simpledb.storage.HeapFile;
+import simpledb.storage.Tuple;
 import simpledb.storage.TupleDesc;
 
 import java.io.BufferedReader;
@@ -22,12 +23,51 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class Catalog {
 
+    public class Table {
+        private DbFile dbFile; //table存储在的file
+        private String name;
+        private String pkeyField;
+        private TupleDesc tupleDesc;
+        private int tableId;
+
+        public Table(DbFile dbFile, String name, String pkeyField) {
+            this.dbFile = dbFile;
+            this.name = name;
+            this.pkeyField = pkeyField;
+            this.tupleDesc = dbFile.getTupleDesc();
+            this.tableId = dbFile.getId();
+        }
+
+        public TupleDesc getTupleDesc() {
+            return tupleDesc;
+        }
+
+        public int getTableId() {
+            return tableId;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public DbFile getDbFile() {
+            return dbFile;
+        }
+
+        public String getPkeyField() {
+            return pkeyField;
+        }
+    }
+
+    private ArrayList<Table> tables;
+
     /**
      * Constructor.
      * Creates a new, empty catalog.
      */
     public Catalog() {
         // TODO: some code goes here
+        tables = new ArrayList<>();
     }
 
     /**
@@ -42,6 +82,26 @@ public class Catalog {
      */
     public void addTable(DbFile file, String name, String pkeyField) {
         // TODO: some code goes here
+        int id = file.getId();
+        for(Table t: tables) {
+            if(t.getTableId() == id) {
+                tables.remove(t);
+                break;
+            }
+            if(name == null) {
+                if(t.getName() == null) {
+                    tables.remove(t);
+                    break;
+                }
+            }
+            else {
+                if(name.equals(t.getName())) {
+                    tables.remove(t);
+                    break;
+                }
+            }
+        }
+        tables.add(new Table(file, name, pkeyField));
     }
 
     public void addTable(DbFile file, String name) {
@@ -67,7 +127,17 @@ public class Catalog {
      */
     public int getTableId(String name) throws NoSuchElementException {
         // TODO: some code goes here
-        return 0;
+        for (Table table : tables) {
+            if (name == null) {
+                if (table.getName() == null) {
+                    return table.getTableId();
+                }
+            }
+            if (Objects.equals(name, table.getName())) {
+                return table.getTableId();
+            }
+        }
+        throw new NoSuchElementException();
     }
 
     /**
@@ -79,7 +149,12 @@ public class Catalog {
      */
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
         // TODO: some code goes here
-        return null;
+        for (Table table : tables) {
+            if (tableid == table.getTableId()) {
+                return table.getTupleDesc();
+            }
+        }
+        throw new NoSuchElementException();
     }
 
     /**
@@ -91,22 +166,48 @@ public class Catalog {
      */
     public DbFile getDatabaseFile(int tableid) throws NoSuchElementException {
         // TODO: some code goes here
-        return null;
+        for(Table t: tables) {
+            if(tableid == t.getTableId()) {
+                return t.getDbFile();
+            }
+        }
+        throw new NoSuchElementException();
     }
 
     public String getPrimaryKey(int tableid) {
         // TODO: some code goes here
-        return null;
+        for(Table t: tables) {
+            if(tableid == t.getTableId()) {
+                return t.getPkeyField();
+            }
+        }
+        throw new NoSuchElementException();
     }
 
     public Iterator<Integer> tableIdIterator() {
         // TODO: some code goes here
-        return null;
+        return new Iterator<Integer>() {
+            int cur = -1;
+            @Override
+            public boolean hasNext() {
+                return cur + 1 < tables.size();
+            }
+
+            @Override
+            public Integer next() {
+                return tables.get(++cur).getTableId();
+            }
+        };
     }
 
     public String getTableName(int id) {
         // TODO: some code goes here
-        return null;
+        for(Table t: tables) {
+            if(id == t.getTableId()) {
+                return t.getName();
+            }
+        }
+        throw new NoSuchElementException();
     }
 
     /**
@@ -114,6 +215,7 @@ public class Catalog {
      */
     public void clear() {
         // TODO: some code goes here
+        tables.clear();
     }
 
     /**
