@@ -15,6 +15,7 @@ import java.util.NoSuchElementException;
  * resource allocation/deallocation, an open method should call any
  * child iterator open methods, and in a close method, an iterator
  * should call its children's close methods.
+ * 迭代操作符
  */
 public interface OpIterator extends Serializable {
     /**

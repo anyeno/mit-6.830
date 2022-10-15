@@ -48,6 +48,11 @@ public class Predicate implements Serializable {
 
     }
 
+    private Field operand; // 操作的字段的值
+    private Op op;  // 操作的运算符
+    private int field;  // 操作的字段在tuple中的index
+
+
     /**
      * Constructor.
      *
@@ -57,6 +62,9 @@ public class Predicate implements Serializable {
      */
     public Predicate(int field, Op op, Field operand) {
         // TODO: some code goes here
+        this.op = op;
+        this.operand = operand;
+        this.field = field;
     }
 
     /**
@@ -64,7 +72,7 @@ public class Predicate implements Serializable {
      */
     public int getField() {
         // TODO: some code goes here
-        return -1;
+        return field;
     }
 
     /**
@@ -72,7 +80,7 @@ public class Predicate implements Serializable {
      */
     public Op getOp() {
         // TODO: some code goes here
-        return null;
+        return op;
     }
 
     /**
@@ -80,7 +88,7 @@ public class Predicate implements Serializable {
      */
     public Field getOperand() {
         // TODO: some code goes here
-        return null;
+        return operand;
     }
 
     /**
@@ -94,7 +102,7 @@ public class Predicate implements Serializable {
      */
     public boolean filter(Tuple t) {
         // TODO: some code goes here
-        return false;
+        return t.getField(field).compare(op, operand);
     }
 
     /**
@@ -103,6 +111,11 @@ public class Predicate implements Serializable {
      */
     public String toString() {
         // TODO: some code goes here
-        return "";
+        String res = "";
+        res = res + "f = " + String.valueOf(field) + " ";
+        res = res + "op = " + op.toString() + " ";
+        res = res + "operand = " + operand.toString();
+
+        return res;
     }
 }
