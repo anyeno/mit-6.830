@@ -103,10 +103,13 @@ public class IntegerAggregator implements Aggregator {
 
         private ArrayList<Field> gbField;
         private int g_cur;
+        private boolean is_opened = false;
 
         @Override
         public void open() throws DbException, TransactionAbortedException {
             gbField = new ArrayList<>();
+            is_opened = true;
+//            System.out.println("已创建 array");
             for(Field key: map.keySet()) {
                 gbField.add(key);
             }
@@ -115,6 +118,9 @@ public class IntegerAggregator implements Aggregator {
 
         @Override
         public boolean hasNext() throws DbException, TransactionAbortedException {
+            if(!is_opened) {
+                throw new IllegalStateException("没打开");
+            }
             return g_cur != gbField.size();
         }
 
@@ -165,6 +171,7 @@ public class IntegerAggregator implements Aggregator {
         public void close() {
             g_cur = 0;
             gbField = null;
+            is_opened = false;
         }
     }
 

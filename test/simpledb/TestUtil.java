@@ -139,6 +139,7 @@ public class TestUtil {
 
             while (actual.hasNext()) {
                 Tuple next = actual.next();
+//                System.out.println("actual == " + next);
                 if (compareTuples(expectedTup, next)) {
                     matched = true;
                     break;
