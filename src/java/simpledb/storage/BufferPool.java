@@ -2,15 +2,12 @@ package simpledb.storage;
 
 import simpledb.common.Database;
 import simpledb.common.DbException;
-import simpledb.common.DeadlockException;
 import simpledb.common.Permissions;
 import simpledb.transaction.TransactionAbortedException;
 import simpledb.transaction.TransactionId;
 
 import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.ArrayList;
 
 /**
  * BufferPool manages the reading and writing of pages into memory from
@@ -160,6 +157,12 @@ public class BufferPool {
             throws DbException, IOException, TransactionAbortedException {
         // TODO: some code goes here
         // not necessary for lab1
+        DbFile dbFile = Database.getCatalog().getDatabaseFile(tableId);
+        ArrayList<Page> affectPgs = (ArrayList<Page>) dbFile.insertTuple(tid, t);
+        for(Page page: affectPgs) {
+            page.markDirty(true, tid);
+            
+        }
     }
 
     /**

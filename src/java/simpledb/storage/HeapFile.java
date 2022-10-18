@@ -2,12 +2,14 @@ package simpledb.storage;
 
 import simpledb.common.Database;
 import simpledb.common.DbException;
-import simpledb.common.Debug;
 import simpledb.common.Permissions;
 import simpledb.transaction.TransactionAbortedException;
 import simpledb.transaction.TransactionId;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -114,16 +116,46 @@ public class HeapFile implements DbFile {
     public List<Page> insertTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
         // TODO: some code goes here
-        return null;
         // not necessary for lab1
+        ArrayList<Page> res = new ArrayList<>();
+        int numPages = numPages();
+
+        for(int pgNo = 0; pgNo < numPages + 1; pgNo ++) {
+            HeapPageId pid = new HeapPageId(getId(), pgNo);
+            HeapPage pg;
+            if(pgNo < numPages) {
+                pg = (HeapPage) Database.getBufferPool().getPage(tid, pid, Permissions.READ_WRITE);
+            } else {
+                pg = new HeapPage(pid, HeapPage.createEmptyPageData());
+            }
+
+            if(pg.getNumUnusedSlots() > 0) {
+                pg.insertTuple(t);
+                if(pgNo < numPages) {
+                    res.add(pg);
+                } else {
+                    writePage(pg);
+                }
+                return  res;
+            }
+        }
+        throw new DbException("无法加入");
     }
 
     // see DbFile.java for javadocs
     public List<Page> deleteTuple(TransactionId tid, Tuple t) throws DbException,
             TransactionAbortedException {
         // TODO: some code goes here
-        return null;
         // not necessary for lab1
+        HeapPageId heapPageId = (HeapPageId) t.getRecordId().getPageId();
+        if(heapPageId.getTableId() == getId()) {
+            List<Page> res = new ArrayList<>();
+            HeapPage heapPage = (HeapPage) Database.getBufferPool().getPage(tid, heapPageId, Permissions.READ_WRITE);
+            heapPage.deleteTuple(t);
+            res.add(heapPage);
+            return res;
+        }
+        throw new DbException("tuple 所在的表不在这个文件内");
     }
 
     private class HeapFileIterator implements DbFileIterator {

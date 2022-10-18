@@ -3,7 +3,6 @@ package simpledb.storage;
 import simpledb.common.Catalog;
 import simpledb.common.Database;
 import simpledb.common.DbException;
-import simpledb.common.Debug;
 import simpledb.transaction.TransactionId;
 
 import java.io.*;
@@ -254,6 +253,16 @@ public class HeapPage implements Page {
     public void deleteTuple(Tuple t) throws DbException {
         // TODO: some code goes here
         // not necessary for lab1
+        boolean has_t = false;
+        for (int i = 0; i < tuples.length; i++) {
+            if(tuples[i].equals(t) && isSlotUsed(i)) {
+                markSlotUsed(i, false);
+                has_t = true;
+            }
+        }
+        if(!has_t) {
+            throw new RuntimeException("tuple不存在或者已删除");
+        }
     }
 
     /**
@@ -267,6 +276,16 @@ public class HeapPage implements Page {
     public void insertTuple(Tuple t) throws DbException {
         // TODO: some code goes here
         // not necessary for lab1
+        if(getNumUnusedSlots() == 0) {
+            throw new RuntimeException("空间不足，无法插入");
+        }
+        for (int i = 0; i < tuples.length; i++) {
+            if(!isSlotUsed(i)) {
+                tuples[i] = t;
+                markSlotUsed(i, true);
+            }
+        }
+
     }
 
     /**
@@ -319,10 +338,24 @@ public class HeapPage implements Page {
 
     /**
      * Abstraction to fill or clear a slot on this page.
+     * @param value  true if markUsed or false
      */
     private void markSlotUsed(int i, boolean value) {
         // TODO: some code goes here
         // not necessary for lab1
+        if(i < numSlots) {
+            int a = i / 8;
+            int b = i % 8;
+            if(value){
+                if((header[a] >> b & 1) == 0) { //原先未使用
+                    header[a] ^= (1 << b);  // 第b位取反
+                }
+            } else {
+                if((header[a] >> b & 1) == 1) { // 原先使用了
+                    header[a] ^= (1 << b);  // 第b位取反
+                }
+            }
+        }
     }
 
     /**
