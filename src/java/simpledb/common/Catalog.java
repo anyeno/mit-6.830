@@ -2,7 +2,6 @@ package simpledb.common;
 
 import simpledb.storage.DbFile;
 import simpledb.storage.HeapFile;
-import simpledb.storage.Tuple;
 import simpledb.storage.TupleDesc;
 
 import java.io.BufferedReader;
@@ -10,7 +9,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The Catalog keeps track of all available tables in the database and their
@@ -139,6 +137,15 @@ public class Catalog {
         }
         throw new NoSuchElementException();
     }
+
+//    public int getTableId_td(TupleDesc td) throws DbException {
+//        for(Table t: tables) {
+//            if(t.getTupleDesc().equals(td)) {
+//                return t.getTableId();
+//            }
+//        }
+//        throw new DbException("tables中没有还tupledesc");
+//    }
 
     /**
      * Returns the tuple descriptor (schema) of the specified table

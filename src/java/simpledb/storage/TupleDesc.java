@@ -3,7 +3,6 @@ package simpledb.storage;
 import simpledb.common.Type;
 
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -99,6 +98,8 @@ public class TupleDesc implements Serializable {
         // TODO: some code goes here
         return tdItems.length;
     }
+
+
 
     /**
      * Gets the (possibly null) field name of the ith field of this TupleDesc.

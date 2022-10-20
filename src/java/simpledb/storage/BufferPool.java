@@ -86,8 +86,11 @@ public class BufferPool {
                 return p;
             }
         }
-        if(pages.size() == numPages)
-            throw new DbException("驱逐策略\n");
+        if(pages.size() == numPages) {
+//            throw new DbException("驱逐策略\n");
+            evictPage();
+        }
+
         Page res = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
         pages.add(res);
         return res;
@@ -242,6 +245,7 @@ public class BufferPool {
         for(Page page: pages) {
             if(page.getId().equals(pid)) {
                 Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(page);
+                page.markDirty(false, null);
                 break;
             }
         }
@@ -262,7 +266,12 @@ public class BufferPool {
     private synchronized void evictPage() throws DbException {
         // TODO: some code goes here
         // not necessary for lab1
-
+        try {
+            flushPage(pages.get(0).getId());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        pages.remove(0);
     }
 
 }
