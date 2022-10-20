@@ -23,6 +23,8 @@ public class HeapPage implements Page {
     final byte[] header;
     final Tuple[] tuples;
     final int numSlots;
+    private TransactionId last_dir_tid = null;
+    private boolean is_dirty = false;
 
     byte[] oldData;
     private final Byte oldDataLock = (byte) 0;
@@ -254,14 +256,18 @@ public class HeapPage implements Page {
         // TODO: some code goes here
         // not necessary for lab1
         boolean has_t = false;
-        for (int i = 0; i < tuples.length; i++) {
-            if(tuples[i].equals(t) && isSlotUsed(i)) {
-                markSlotUsed(i, false);
-                has_t = true;
+        RecordId rec2del = t.getRecordId();
+        if(rec2del != null && pid.equals(rec2del.getPageId())) {
+            for (int i = 0; i < tuples.length; i++) {
+                if (tuples[i] != null && rec2del.equals(tuples[i].getRecordId()) && isSlotUsed(i)) {
+                    markSlotUsed(i, false);
+//                    tuples[i] = null;
+                    has_t = true;
+                }
             }
         }
         if(!has_t) {
-            throw new RuntimeException("tuple不存在或者已删除");
+            throw new DbException("tuple不存在或者已删除");
         }
     }
 
@@ -277,12 +283,17 @@ public class HeapPage implements Page {
         // TODO: some code goes here
         // not necessary for lab1
         if(getNumUnusedSlots() == 0) {
-            throw new RuntimeException("空间不足，无法插入");
+            throw new DbException("空间不足，无法插入");
+        }
+        if(!td.equals(t.getTupleDesc())) {
+            throw new DbException("tupledesc 不匹配");
         }
         for (int i = 0; i < tuples.length; i++) {
             if(!isSlotUsed(i)) {
+                t.setRecordId(new RecordId(pid, i));    // notice!
                 tuples[i] = t;
                 markSlotUsed(i, true);
+                return ;
             }
         }
 
@@ -295,6 +306,13 @@ public class HeapPage implements Page {
     public void markDirty(boolean dirty, TransactionId tid) {
         // TODO: some code goes here
         // not necessary for lab1
+        if(dirty) {
+            is_dirty = true;
+            last_dir_tid = tid;
+        } else {
+            is_dirty = false;
+            last_dir_tid = null;
+        }
     }
 
     /**
@@ -303,7 +321,7 @@ public class HeapPage implements Page {
     public TransactionId isDirty() {
         // TODO: some code goes here
         // Not necessary for lab1
-        return null;
+        return last_dir_tid;
     }
 
     /**

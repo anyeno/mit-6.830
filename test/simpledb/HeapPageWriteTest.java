@@ -1,13 +1,8 @@
 package simpledb;
 
-import java.util.Iterator;
-import java.util.LinkedList;
-
 import junit.framework.JUnit4TestAdapter;
-
 import org.junit.Before;
 import org.junit.Test;
-
 import simpledb.TestUtil.SkeletonFile;
 import simpledb.common.Database;
 import simpledb.common.DbException;
@@ -18,6 +13,9 @@ import simpledb.storage.Tuple;
 import simpledb.systemtest.SimpleDbTestBase;
 import simpledb.systemtest.SystemTestUtil;
 import simpledb.transaction.TransactionId;
+
+import java.util.Iterator;
+import java.util.LinkedList;
 
 import static org.junit.Assert.*;
 

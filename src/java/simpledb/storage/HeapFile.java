@@ -6,10 +6,7 @@ import simpledb.common.Permissions;
 import simpledb.transaction.TransactionAbortedException;
 import simpledb.transaction.TransactionId;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -58,7 +55,7 @@ public class HeapFile implements DbFile {
      * HeapFile has a "unique id," and that you always return the same value for
      * a particular HeapFile. We suggest hashing the absolute file name of the
      * file underlying the heapfile, i.e. f.getAbsoluteFile().hashCode().
-     *
+     *  heapfile的ID
      * @return an ID uniquely identifying this HeapFile.
      */
     public int getId() {
@@ -101,6 +98,16 @@ public class HeapFile implements DbFile {
     public void writePage(Page page) throws IOException {
         // TODO: some code goes here
         // not necessary for lab1
+        PageId pid = page.getId();
+        int tableid = pid.getTableId();
+        int pgNo = pid.getPageNumber();
+
+        final int pageSize = Database.getBufferPool().getPageSize();
+        byte[] pgData = page.getPageData();
+
+        RandomAccessFile dbfile = new RandomAccessFile(f, "rws");
+        dbfile.skipBytes(pgNo * pageSize);
+        dbfile.write(pgData);
     }
 
     /**
@@ -135,6 +142,7 @@ public class HeapFile implements DbFile {
                     res.add(pg);
                 } else {
                     writePage(pg);
+                    res.add(pg);
                 }
                 return  res;
             }

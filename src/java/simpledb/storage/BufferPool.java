@@ -161,7 +161,7 @@ public class BufferPool {
         ArrayList<Page> affectPgs = (ArrayList<Page>) dbFile.insertTuple(tid, t);
         for(Page page: affectPgs) {
             page.markDirty(true, tid);
-            
+            pages.add(page);
         }
     }
 
@@ -182,6 +182,20 @@ public class BufferPool {
             throws DbException, IOException, TransactionAbortedException {
         // TODO: some code goes here
         // not necessary for lab1
+        DbFile dbFile = Database.getCatalog().getDatabaseFile(t.getRecordId().getPageId().getTableId());
+        ArrayList<Page> dirty_page = (ArrayList<Page>) dbFile.deleteTuple(tid, t);
+
+        for(Page p: pages) {
+            for(Page dp: dirty_page) {
+                if(dp.getId().equals(p.getId())) {
+                    p.markDirty(true, tid);
+                    pages.remove(p);
+                    pages.add(dp);
+                }
+            }
+        }
+
+
     }
 
     /**
@@ -192,7 +206,9 @@ public class BufferPool {
     public synchronized void flushAllPages() throws IOException {
         // TODO: some code goes here
         // not necessary for lab1
-
+        for(Page p: pages) {
+            flushPage(p.getId());
+        }
     }
 
     /**
@@ -207,6 +223,12 @@ public class BufferPool {
     public synchronized void removePage(PageId pid) {
         // TODO: some code goes here
         // not necessary for lab1
+        for(Page page: pages) {
+            if(page.getId().equals(pid)) {
+                pages.remove(page);
+                break;
+            }
+        }
     }
 
     /**
@@ -217,6 +239,12 @@ public class BufferPool {
     private synchronized void flushPage(PageId pid) throws IOException {
         // TODO: some code goes here
         // not necessary for lab1
+        for(Page page: pages) {
+            if(page.getId().equals(pid)) {
+                Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(page);
+                break;
+            }
+        }
     }
 
     /**
@@ -234,6 +262,7 @@ public class BufferPool {
     private synchronized void evictPage() throws DbException {
         // TODO: some code goes here
         // not necessary for lab1
+
     }
 
 }
