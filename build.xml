@@ -11,7 +11,7 @@
     <property name="lib" location="lib"/>
     <property name="doc" location="javadoc"/>
     <property name="dist" location="dist"/>
-    <property name="jarfile" location="${dist}/${ant.project.name}.jar"/>
+    <property name="jarfile" location="/simpledb/dist/${ant.project.name}.jar"/>
     <property name="compile.debug" value="true"/>
     <property name="test.reports" location="testreport"/>
 
@@ -193,7 +193,7 @@
     </target>
 
     <target name="dist" depends="compile" description="Build jar">
-        <mkdir dir="${dist}"/>
+        <mkdir dir="/simpledb/dist"/>
         <jar jarfile="${jarfile}" basedir="${build.src}">
             <manifest>
                 <attribute name="Main-Class" value="simpledb.SimpleDb"/>
@@ -206,7 +206,7 @@
 
     <target name="clean" description="Remove build and dist directories">
         <delete dir="${build}"/>
-        <delete dir="${dist}"/>
+        <delete dir="/simpledb/dist"/>
         <delete dir="${doc}"/>
         <delete dir="${test.reports}"/>
     </target>
