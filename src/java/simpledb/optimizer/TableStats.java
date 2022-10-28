@@ -1,12 +1,13 @@
 package simpledb.optimizer;
 
 import simpledb.common.Database;
+import simpledb.common.DbException;
 import simpledb.common.Type;
 import simpledb.execution.Predicate;
-import simpledb.execution.SeqScan;
 import simpledb.storage.*;
-import simpledb.transaction.Transaction;
+import simpledb.transaction.TransactionAbortedException;
 
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -65,6 +66,12 @@ public class TableStats {
      * histograms.
      */
     static final int NUM_HIST_BINS = 100;
+    private Map<Integer, IntHistogram> integerIntHistogramMap;
+    private Map<Integer, StringHistogram> integerStringHistogramMap;
+    private int tableid;
+    private int inCostPerPage;
+    private int ntups;
+    private int npages;
 
     /**
      * Create a new TableStats object, that keeps track of statistics on each
@@ -83,6 +90,100 @@ public class TableStats {
         // necessarily have to (for example) do everything
         // in a single scan of the table.
         // TODO: some code goes here
+        this.tableid = tableid;
+        this.inCostPerPage = ioCostPerPage;
+        integerIntHistogramMap = new HashMap<>();
+        integerStringHistogramMap = new HashMap<>();
+        DbFile dbFile = Database.getCatalog().getDatabaseFile(tableid);
+        TupleDesc tupleDesc = dbFile.getTupleDesc();
+        int numFields = tupleDesc.numFields();
+        Map<Integer, Type> integerTypeMap = new HashMap<>();
+        for (int i = 0; i < numFields; i++) {
+            integerTypeMap.put(i, tupleDesc.getFieldType(i));
+        }
+        int max[] = new int[numFields];
+        int min[] = new int[numFields];
+        this.npages = ((HeapFile) dbFile).numPages();
+        DbFileIterator dbFileIterator = dbFile.iterator(null);
+        try {
+            dbFileIterator.open();
+        } catch (DbException e) {
+            e.printStackTrace();
+        } catch (TransactionAbortedException e) {
+            e.printStackTrace();
+        }
+        // 遍历tuple找出max、min
+        while(true) {
+            try {
+                if (!dbFileIterator.hasNext()) break;
+            } catch (DbException e) {
+                e.printStackTrace();
+            } catch (TransactionAbortedException e) {
+                e.printStackTrace();
+            }
+            Tuple tuple = null;
+            try {
+                tuple = dbFileIterator.next();
+            } catch (DbException e) {
+                e.printStackTrace();
+            } catch (TransactionAbortedException e) {
+                e.printStackTrace();
+            }
+            this.ntups ++;
+            for (int i = 0; i < numFields; i++) {
+                Field field = tuple.getField(i);
+                if(field.getType() == Type.INT_TYPE) {
+                    if(field.compare(Predicate.Op.GREATER_THAN, new IntField(max[i]))) {
+                        max[i] = ((IntField)field).getValue();
+                    } else if(field.compare(Predicate.Op.LESS_THAN, new IntField(min[i]))) {
+                        min[i] = ((IntField)field).getValue();
+                    }
+                }
+            }
+        }
+        try {
+            dbFileIterator.rewind();
+        } catch (DbException e) {
+            e.printStackTrace();
+        } catch (TransactionAbortedException e) {
+            e.printStackTrace();
+        }
+        //建直方图
+        for (int i = 0; i < numFields; i++) {
+            if(integerTypeMap.get(i) == Type.INT_TYPE) {
+                integerIntHistogramMap.put(i, new IntHistogram(NUM_HIST_BINS, min[i], max[i]));
+            } else {
+                integerStringHistogramMap.put(i, new StringHistogram(NUM_HIST_BINS));
+            }
+        }
+        // Field加入到直方图中
+        while(true) {
+            try {
+                if (!dbFileIterator.hasNext()) break;
+            } catch (DbException e) {
+                e.printStackTrace();
+            } catch (TransactionAbortedException e) {
+                e.printStackTrace();
+            }
+            Tuple tuple = null;
+            try {
+                tuple = dbFileIterator.next();
+            } catch (DbException e) {
+                e.printStackTrace();
+            } catch (TransactionAbortedException e) {
+                e.printStackTrace();
+            }
+            for (int i = 0; i < numFields; i++) {
+                Field field = tuple.getField(i);
+                if(field.getType() == Type.INT_TYPE) {
+                    integerIntHistogramMap.get(i).addValue(((IntField)field).getValue());
+                } else {
+                    integerStringHistogramMap.get(i).addValue(((StringField) field).getValue());
+                }
+            }
+        }
+        dbFileIterator.close();
+
     }
 
     /**
@@ -99,7 +200,7 @@ public class TableStats {
      */
     public double estimateScanCost() {
         // TODO: some code goes here
-        return 0;
+        return npages * inCostPerPage;
     }
 
     /**
@@ -112,7 +213,7 @@ public class TableStats {
      */
     public int estimateTableCardinality(double selectivityFactor) {
         // TODO: some code goes here
-        return 0;
+        return (int) (ntups * selectivityFactor);
     }
 
     /**
@@ -141,7 +242,11 @@ public class TableStats {
      */
     public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
         // TODO: some code goes here
-        return 1.0;
+        if(integerIntHistogramMap.containsKey(field)) {
+            return integerIntHistogramMap.get(field).estimateSelectivity(op, ((IntField)constant).getValue());
+        } else {
+            return integerStringHistogramMap.get(field).estimateSelectivity(op, ((StringField)constant).getValue());
+        }
     }
 
     /**
