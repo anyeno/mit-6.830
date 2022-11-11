@@ -26,13 +26,13 @@ import java.util.*;
  * best implementations for joins.
  */
 public class LogicalPlan {
-    private List<LogicalJoinNode> joins;
+    private List<LogicalJoinNode> joins;    // join
     private final List<LogicalScanNode> tables;
-    private final List<LogicalFilterNode> filters;
+    private final List<LogicalFilterNode> filters;  // 过滤
     private final Map<String, OpIterator> subplanMap;
-    private final Map<String, Integer> tableMap;
+    private final Map<String, Integer> tableMap;        // 表别名映射到表id
 
-    private final List<LogicalSelectListNode> selectList;
+    private final List<LogicalSelectListNode> selectList;   // select投影
     private String groupByField = null;
     private boolean hasAgg = false;
     private String aggOp;
@@ -108,15 +108,16 @@ public class LogicalPlan {
     public void addFilter(String field, Predicate.Op p, String
             constantValue) throws ParsingException {
 
-        field = disambiguateName(field);
-        String table = field.split("[.]")[0];
-
+        field = disambiguateName(field);    // tablename.name
+        String table = field.split("[.]")[0];   //  tablename
+        // 在某个表的某个字段上执行过滤操作
         LogicalFilterNode lf = new LogicalFilterNode(table, field.split("[.]")[1], p, constantValue);
         filters.add(lf);
     }
 
     /**
      * Add a join between two fields of two different tables.
+     *两个表的两个字段做join
      *
      * @param joinField1 The name of the first join field; this can
      *                   be a fully qualified name (e.g., tableName.field or
@@ -173,6 +174,7 @@ public class LogicalPlan {
     /**
      * Add a scan to the plan. One scan node needs to be added for each alias of a table
      * accessed by the plan.
+     * 扫描某表
      *
      * @param table the id of the table accessed by the plan (can be resolved to a DbFile using {@link Catalog#getDatabaseFile}
      * @param name  the alias of the table in the plan
@@ -187,7 +189,7 @@ public class LogicalPlan {
     /**
      * Add a specified field/aggregate combination to the select list of the query.
      * Fields are output by the query such that the rightmost field is the first added via addProjectField.
-     *
+     *投影 选取某个表的某个字段而抛弃其他字段  对应select
      * @param fname the field to add to the output
      * @param aggOp the aggregate operation over the field.
      * @throws ParsingException
@@ -207,6 +209,7 @@ public class LogicalPlan {
      * Add an aggregate over the field with the specified grouping to
      * the query.  SimpleDb only supports a single aggregate
      * expression and GROUP BY field.
+     * groupby的操作
      *
      * @param op     the aggregation operator
      * @param afield the field to aggregate over
@@ -226,6 +229,7 @@ public class LogicalPlan {
     /**
      * Add an ORDER BY expression in the specified order on the specified field.  SimpleDb only supports
      * a single ORDER BY field.
+     * 排序   只支持按一个字段做排序
      *
      * @param field the field to order by
      * @param asc   true if should be ordered in ascending order, false for descending order
@@ -241,6 +245,7 @@ public class LogicalPlan {
     /**
      * Given a name of a field, try to figure out what table it belongs to by looking
      * through all of the tables added via {@link #addScan}.
+     * 辅助函数 给字段名返回属于的表名.字段名
      *
      * @return A fully qualified name of the form tableAlias.name.  If the name parameter is already qualified
      *         with a table name, simply returns name.

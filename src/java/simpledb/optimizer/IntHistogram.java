@@ -44,6 +44,14 @@ public class IntHistogram {
         this.ntups = 0;
     }
 
+    public int getMin() {
+        return min;
+    }
+
+    public int getMax() {
+        return max;
+    }
+
     /**
      * Add a value to the set of values that you are keeping a histogram of.
      *

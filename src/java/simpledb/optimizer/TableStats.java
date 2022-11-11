@@ -66,7 +66,7 @@ public class TableStats {
      * histograms.
      */
     static final int NUM_HIST_BINS = 100;
-    private Map<Integer, IntHistogram> integerIntHistogramMap;
+    private Map<Integer, IntHistogram> integerIntHistogramMap;      // 表的列号和直方图的映射
     private Map<Integer, StringHistogram> integerStringHistogramMap;
     private int tableid;
     private int inCostPerPage;
@@ -101,36 +101,35 @@ public class TableStats {
         for (int i = 0; i < numFields; i++) {
             integerTypeMap.put(i, tupleDesc.getFieldType(i));
         }
-        int max[] = new int[numFields];
-        int min[] = new int[numFields];
+        int[] max = new int[numFields];
+        int[] min = new int[numFields];
+        for (int i = 0; i < numFields; i++) {
+            max[i] = Integer.MIN_VALUE;
+            min[i] = Integer.MAX_VALUE;
+        }
         this.npages = ((HeapFile) dbFile).numPages();
         DbFileIterator dbFileIterator = dbFile.iterator(null);
         try {
             dbFileIterator.open();
-        } catch (DbException e) {
-            e.printStackTrace();
-        } catch (TransactionAbortedException e) {
+        } catch (DbException | TransactionAbortedException e) {
             e.printStackTrace();
         }
         // 遍历tuple找出max、min
         while(true) {
             try {
                 if (!dbFileIterator.hasNext()) break;
-            } catch (DbException e) {
-                e.printStackTrace();
-            } catch (TransactionAbortedException e) {
+            } catch (DbException | TransactionAbortedException e) {
                 e.printStackTrace();
             }
             Tuple tuple = null;
             try {
                 tuple = dbFileIterator.next();
-            } catch (DbException e) {
-                e.printStackTrace();
-            } catch (TransactionAbortedException e) {
+            } catch (DbException | TransactionAbortedException e) {
                 e.printStackTrace();
             }
             this.ntups ++;
             for (int i = 0; i < numFields; i++) {
+                assert tuple != null;
                 Field field = tuple.getField(i);
                 if(field.getType() == Type.INT_TYPE) {
                     if(field.compare(Predicate.Op.GREATER_THAN, new IntField(max[i]))) {
@@ -143,9 +142,7 @@ public class TableStats {
         }
         try {
             dbFileIterator.rewind();
-        } catch (DbException e) {
-            e.printStackTrace();
-        } catch (TransactionAbortedException e) {
+        } catch (DbException | TransactionAbortedException e) {
             e.printStackTrace();
         }
         //建直方图
@@ -160,20 +157,17 @@ public class TableStats {
         while(true) {
             try {
                 if (!dbFileIterator.hasNext()) break;
-            } catch (DbException e) {
-                e.printStackTrace();
-            } catch (TransactionAbortedException e) {
+            } catch (DbException | TransactionAbortedException e) {
                 e.printStackTrace();
             }
             Tuple tuple = null;
             try {
                 tuple = dbFileIterator.next();
-            } catch (DbException e) {
-                e.printStackTrace();
-            } catch (TransactionAbortedException e) {
+            } catch (DbException | TransactionAbortedException e) {
                 e.printStackTrace();
             }
             for (int i = 0; i < numFields; i++) {
+                assert tuple != null;
                 Field field = tuple.getField(i);
                 if(field.getType() == Type.INT_TYPE) {
                     integerIntHistogramMap.get(i).addValue(((IntField)field).getValue());
@@ -227,7 +221,12 @@ public class TableStats {
      */
     public double avgSelectivity(int field, Predicate.Op op) {
         // TODO: some code goes here
-        return 1.0;
+        if(integerIntHistogramMap.containsKey(field)) {
+            IntHistogram ih =  integerIntHistogramMap.get(field);
+            return ih.estimateSelectivity(op,  (ih.getMax() + ih.getMin())/2);
+        } else {
+            return integerStringHistogramMap.get(field).avgSelectivity();
+        }
     }
 
     /**
@@ -254,7 +253,7 @@ public class TableStats {
      */
     public int totalTuples() {
         // TODO: some code goes here
-        return 0;
+        return ntups;
     }
 
 }

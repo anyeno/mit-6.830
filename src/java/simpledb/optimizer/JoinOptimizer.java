@@ -3,7 +3,6 @@ package simpledb.optimizer;
 import simpledb.ParsingException;
 import simpledb.common.Database;
 import simpledb.execution.*;
-import simpledb.storage.TupleDesc;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -105,7 +104,7 @@ public class JoinOptimizer {
             // HINT: You may need to use the variable "j" if you implemented
             // a join algorithm that's more complicated than a basic
             // nested-loops join.
-            return -1.0;
+            return cost1 + card1 * cost2 + card1 * card2;
         }
     }
 
@@ -143,14 +142,23 @@ public class JoinOptimizer {
                                                    String field2PureName, int card1, int card2, boolean t1pkey,
                                                    boolean t2pkey, Map<String, TableStats> stats,
                                                    Map<String, Integer> tableAliasToId) {
-        int card = 1;
         // TODO: some code goes here
-        return card <= 0 ? 1 : card;
+        if(joinOp.equals(Predicate.Op.EQUALS)) {
+            if (t1pkey) {
+                return card2;
+            }
+            if (t2pkey) {
+                return card1;
+            }
+            return Math.max(card1, card2);
+        }
+        return (int) (0.3 * card1 *card2);
     }
 
     /**
      * Helper method to enumerate all of the subsets of a given size of a
      * specified vector.
+     *计算子集
      *
      * @param v    The vector whose subsets are desired
      * @param size The size of the subsets of interest
@@ -199,9 +207,38 @@ public class JoinOptimizer {
             Map<String, Double> filterSelectivities, boolean explain)
             throws ParsingException {
         // Not necessary for labs 1 and 2.
-
-        // TODO: some code goes here
-        return joins;
+        int n = joins.size();
+        PlanCache pc = new PlanCache();
+        for (int i = 1; i <= n; i++) {
+            Set<Set<LogicalJoinNode>> subsets = enumerateSubsets(joins, i);
+            for (Set<LogicalJoinNode> subset: subsets) {
+                List<LogicalJoinNode> bestPlan = new ArrayList<>(subset);
+                double cost = Double.MAX_VALUE;
+                int card = Integer.MAX_VALUE;
+                int m = subset.size();
+                Set<Set<LogicalJoinNode>> s_subsets = enumerateSubsets(bestPlan, m-1);
+                for(Set<LogicalJoinNode> s_subset: s_subsets) {
+                    Set<LogicalJoinNode> s_joinToRemove = new HashSet<>(subset);
+                    s_joinToRemove.removeAll(s_subset);
+                    LogicalJoinNode joinToRemove = (LogicalJoinNode) s_joinToRemove.toArray()[0];
+                    CostCard costCard = computeCostAndCardOfSubplan(
+                            stats, filterSelectivities, joinToRemove, s_subset, cost, pc
+                            );
+                    if(costCard != null) {
+                        bestPlan = costCard.plan;
+                        cost = costCard.cost;
+                        card = costCard.card;
+                    }
+                }
+                pc.addPlan(subset, cost, card, bestPlan);
+            }
+        }
+        Set<LogicalJoinNode> s_joins = new HashSet<>(joins);
+        List<LogicalJoinNode> res = pc.getOrder(s_joins);
+        if(explain) {
+            printJoins(res, pc, stats, filterSelectivities);
+        }
+        return res;
     }
 
     // ===================== Private Methods =================================
