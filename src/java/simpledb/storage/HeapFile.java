@@ -78,7 +78,7 @@ public class HeapFile implements DbFile {
         // TODO: some code goes here
         int tableid = pid.getTableId();
         int pgNo = pid.getPageNumber();
-        final int pageSize = Database.getBufferPool().getPageSize();
+        final int pageSize = BufferPool.getPageSize();
         byte[] rawPgData = HeapPage.createEmptyPageData();
 
         // random access read from disk
@@ -102,7 +102,7 @@ public class HeapFile implements DbFile {
         int tableid = pid.getTableId();
         int pgNo = pid.getPageNumber();
 
-        final int pageSize = Database.getBufferPool().getPageSize();
+        final int pageSize = BufferPool.getPageSize();
         byte[] pgData = page.getPageData();
 
         RandomAccessFile dbfile = new RandomAccessFile(f, "rws");
@@ -116,7 +116,7 @@ public class HeapFile implements DbFile {
     public int numPages() {
         // TODO: some code goes here
         int fileSizeinByte = (int) f.length();
-        return fileSizeinByte / Database.getBufferPool().getPageSize();
+        return fileSizeinByte / BufferPool.getPageSize();
     }
 
     // see DbFile.java for javadocs
