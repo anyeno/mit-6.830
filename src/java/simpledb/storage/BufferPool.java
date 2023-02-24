@@ -8,7 +8,7 @@ import simpledb.transaction.TransactionId;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -43,195 +43,10 @@ public class BufferPool {
 
     private LockManager lockManager;
 
-//    private ReentrantReadWriteLock listLock = new ReentrantReadWriteLock();
+    //    private ReentrantReadWriteLock listLock = new ReentrantReadWriteLock();
 //    private ArrayList<ReentrantReadWriteLock> pageLocks;
     private Lock pagesLock = new ReentrantLock();
 
-    private enum LockType {
-        Read,
-        Write
-    }
-
-    private class LockNode {
-        public LockType needLockType;
-        private LockType nowLockType;
-        public TransactionId tid;
-        public boolean isAwarded;
-        public PageId pageId;
-        public LockNode next;
-
-        public LockNode(LockType lockType, TransactionId tid, boolean isAwarded, PageId pageId) {
-            this.needLockType = lockType;
-            this.nowLockType = null;
-            this.tid = tid;
-            this.isAwarded = isAwarded;
-            this.pageId = pageId;
-            this.next = null;
-        }
-    }
-
-    private class LockManager {
-        private ArrayList<LockNode> locks;
-
-        public LockManager() {
-            this.locks = new ArrayList<>();
-        }
-
-        public  boolean acquireLock(TransactionId tid, PageId pageId, LockType lockType){
-            while(true) {
-                synchronized(pageId) {
-                    LockNode tidLockNode = this.holdsLock(tid, pageId);
-                    // 如果这个事务已经获取锁了
-                    if(tidLockNode != null) {
-                        // 插入链表
-                        LockNode pn = tidLockNode;
-                        while(pn.next != null) {
-                            pn = pn.next;
-                        }
-                        pn.next = new LockNode(lockType, tid, false, pageId);
-
-                        // 与已经获取的锁类型相同或者获得了写锁 授予锁
-                        if(tidLockNode.nowLockType == lockType || tidLockNode.nowLockType == LockType.Write)
-                        {
-                            pn.next.isAwarded = true;
-                            pn.next.nowLockType = tidLockNode.nowLockType;
-                            return true;
-                        }
-                        // 阻塞
-                        else{
-                            try {
-                                pageId.wait();
-                                continue;
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-
-                    }
-
-
-                    boolean flag = false;  // 是否存在pageId
-                    for(LockNode lockNode: locks) {
-                        if(pageId.equals(lockNode.pageId)) {
-                            flag = true;
-                            LockNode newLockNode = new LockNode(lockType, tid, false, pageId);
-                            LockNode p = lockNode;
-                            LockType nowLockType = p.nowLockType;
-                            while(p.next != null) {
-                                p = p.next;
-                            }
-                            p.next = newLockNode;
-                            // 锁已经被获取了，这时候只能都是读锁才能获取
-                            if(newLockNode.needLockType == LockType.Read && nowLockType == LockType.Read) {
-                                newLockNode.isAwarded = true;
-                                return true;
-                            } else{
-                                // 阻塞
-                                try {
-                                    pageId.wait();
-                                    break;
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                        }
-                    }
-                    // 此时第一个请求锁  直接授予就行
-                    if(!flag){
-                        LockNode newLockNode = new LockNode(lockType, tid, true, pageId);
-                        newLockNode.nowLockType = newLockNode.needLockType;
-                        locks.add(newLockNode);
-                        return true;
-                    }
-                }
-            }
-        }
-
-        public boolean releaseLock(TransactionId tid, PageId pageId) {
-            synchronized(pageId) {
-                boolean isExist = false;
-                for(LockNode lockNode: locks) {
-                    if(pageId.equals(lockNode.pageId)) {
-                        LockNode pre = lockNode;
-                        LockNode ne = pre;
-                        while(ne.next != null) {
-                            if(tid.equals(ne.tid)) {
-                                isExist = true;
-                                pre.next = ne.next; // 从链表中删除
-                                pageId.notifyAll();
-//                                return true;
-                            }
-                            pre = ne;
-                            ne = ne.next;
-                        }
-                        if(tid.equals(ne.tid)) {
-                            isExist = true;
-                            // 如果lock table中该项只有一个
-                            if(pre == ne) {
-                                locks.remove(lockNode);
-                                return true;
-                            }
-                            else
-                                pre.next = null; // 从链表中删除
-                            pageId.notifyAll();
-                        }
-                    }
-                }
-                if(isExist) return true;
-                else throw new RuntimeException("该事务在未申请该page的锁");
-            }
-        }
-
-        public LockNode holdsLock(TransactionId tid, PageId p) {
-            synchronized(p) {
-                for(LockNode lockNode: locks) {
-                    if(p.equals(lockNode.pageId)) {
-//                        LockNode pre = lockNode;
-                        LockNode ne = lockNode;
-                        while(ne.next != null) {
-                            if(tid.equals(ne.tid)) {
-                                if(ne.isAwarded)
-                                    return ne;
-                            }
-//                            pre = ne;
-                            ne = ne.next;
-                        }
-                        if(tid.equals(ne.tid)) {
-                            if(ne.isAwarded)
-                                return ne;
-                        }
-                    }
-                }
-                return null;
-            }
-        }
-
-        public void transactionComplete(TransactionId tid) {
-            Iterator<LockNode> iterator = locks.iterator();
-            while(iterator.hasNext()) {
-                LockNode lockNode = iterator.next();
-                LockNode ne = lockNode;
-                LockNode pre = lockNode;
-                while(ne.next != null) {
-                    if(tid.equals(ne.tid)) {
-                        pre.next = ne.next;
-                        ne = pre.next;
-                    }
-                    pre = ne;
-                    ne = ne.next;
-                }
-                if(tid.equals(ne.tid)) {
-                    // 如果lock table中该项只有一个
-                    if(pre == ne) {
-                        // 迭代器删除   否则有bug
-                        iterator.remove();
-                    }
-                    else
-                        pre.next = null; // 从链表中删除
-                }
-            }
-        }
-    }
 
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -277,12 +92,33 @@ public class BufferPool {
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
             throws TransactionAbortedException, DbException {
         // TODO: some code goes here
-//        listLock.readLock();
         pagesLock.lock();
+//        if(perm == Permissions.READ_WRITE)
+//            lockManager.acquireLock(tid, pid, LockManager.LockType.Write);
+//        if(perm == Permissions.READ_ONLY)
+//            lockManager.acquireLock(tid, pid, LockManager.LockType.Read);
+
+        LockManager.LockType lockType = LockManager.LockType.Read;
         if(perm == Permissions.READ_WRITE)
-            lockManager.acquireLock(tid, pid, LockType.Write);
-        if(perm == Permissions.READ_ONLY)
-            lockManager.acquireLock(tid, pid, LockType.Read);
+            lockType = LockManager.LockType.Write;
+        lockManager.acquireLock(tid, pid, lockType);
+        boolean successLocked = lockManager.tryLock(tid, pid, lockType);
+        int sleep_times = 0;
+        while(!successLocked) {
+            // 超时死锁
+            if(sleep_times == 5) {
+//                throw new TransactionAbortedException();
+                transactionComplete(tid, false);
+            }
+            try {
+                sleep_times += 1;
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            successLocked = lockManager.tryLock(tid, pid, lockType);
+        }
+
         for(Page p: pages) {
             if(p.getId().equals(pid)) {
                 return p;
@@ -323,7 +159,7 @@ public class BufferPool {
     public void transactionComplete(TransactionId tid) {
         // TODO: some code goes here
         // not necessary for lab1|lab2
-        lockManager.transactionComplete(tid);
+        transactionComplete(tid, true);
     }
 
     /**
@@ -332,7 +168,7 @@ public class BufferPool {
     public boolean holdsLock(TransactionId tid, PageId p) {
         // TODO: some code goes here
         // not necessary for lab1|lab2
-        return lockManager.holdsLock(tid, p) != null;
+        return lockManager.holdsLock(tid, p);
     }
 
     /**
@@ -345,6 +181,29 @@ public class BufferPool {
     public void transactionComplete(TransactionId tid, boolean commit) {
         // TODO: some code goes here
         // not necessary for lab1|lab2
+        if(commit) {
+            // 事务提交 脏页刷到磁盘
+            try {
+                flushPages(tid);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            List<PageId> pageIds = lockManager.affectedPages(tid);
+            for(PageId pageId: pageIds) {
+//                Iterator<Page> iterator = pages.iterator();
+//                while(iterator.hasNext()) {
+//                    Page p = iterator.next();
+//                    p = p.getBeforeImage();
+//                }
+                for (int i = 0; i < pages.size(); i++) {
+                    if(pageId.equals(pages.get(i).getId())) {
+                        pages.set(i, pages.get(i).getBeforeImage());
+                    }
+                }
+            }
+        }
+        lockManager.releaseAllLocks(tid);
     }
 
     /**
@@ -463,6 +322,10 @@ public class BufferPool {
     public synchronized void flushPages(TransactionId tid) throws IOException {
         // TODO: some code goes here
         // not necessary for lab1|lab2
+        List<PageId> pageIds = lockManager.affectedPages(tid);
+        for(PageId pageId: pageIds) {
+            flushPage(pageId);
+        }
     }
 
     /**
