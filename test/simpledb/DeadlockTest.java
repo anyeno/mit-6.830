@@ -1,13 +1,9 @@
 package simpledb;
 
-import simpledb.TestUtil.LockGrabber;
-
-import java.util.*;
+import junit.framework.JUnit4TestAdapter;
 import org.junit.Before;
 import org.junit.Test;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import junit.framework.JUnit4TestAdapter;
+import simpledb.TestUtil.LockGrabber;
 import simpledb.common.Database;
 import simpledb.common.Permissions;
 import simpledb.common.Utility;
@@ -15,6 +11,11 @@ import simpledb.storage.BufferPool;
 import simpledb.storage.HeapPageId;
 import simpledb.storage.PageId;
 import simpledb.transaction.TransactionId;
+
+import java.util.Random;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 public class DeadlockTest extends TestUtil.CreateHeapFile {
   private PageId p0;
@@ -44,7 +45,9 @@ public class DeadlockTest extends TestUtil.CreateHeapFile {
       empty.insertTuple(tid, Utility.getHeapTuple(i, 2));
     }
 
-    // if this fails, complain to the TA
+    // if the line below fails, check if the addTuple test in HeapFileWriteTest
+    // still passes. if HeapFileWriteTest is passing and this line is still failing
+    // w/out known reason, come talk with the TAs to further debug the issue.
     assertEquals(3, empty.numPages());
 
     this.p0 = new HeapPageId(empty.getId(), 0);
