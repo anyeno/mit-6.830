@@ -131,6 +131,7 @@ public class HeapFile implements DbFile {
             HeapPageId pid = new HeapPageId(getId(), pgNo);
             HeapPage pg;
             if(pgNo < numPages) {
+                // 先从缓冲区取
                 pg = (HeapPage) Database.getBufferPool().getPage(tid, pid, Permissions.READ_WRITE);
             } else {
                 pg = new HeapPage(pid, HeapPage.createEmptyPageData());
