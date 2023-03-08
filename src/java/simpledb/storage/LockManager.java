@@ -51,50 +51,62 @@ public class LockManager {
     }
 
     // 判断是否可以获取锁 可以就加锁 ** 在这个函数里实际加锁 **
+    // 锁升级 如果事务t是唯一一个在对象o上持有共享锁的事务，则 t可以将其在o上的锁升级为独占锁。
     public synchronized boolean tryLock(TransactionId tid, PageId pageId, LockType lockType) {
         List<LockNode> nodes = lockTable.get(pageId);
-        // 就这一所等待锁的 直接给他
+        // 就这一个等待锁的 直接给他
         if(nodes.size() == 1) {
             nodes.get(0).isAwarded = true;
             return true;
         }
 
-        boolean flag = false; //是否能获取锁
-
         Iterator<LockNode> iterator = nodes.listIterator();
         LockNode itself = null;
-        while(iterator.hasNext()){
+        while(iterator.hasNext()) {
             LockNode now = iterator.next();
-            // 遍历到自己了   不支持同一个事务加两个相同的锁
             if(now.tid.equals(tid) && now.needLockType == lockType) {
                 itself = now;
                 break;
             }
-            // 该事务已经获取到了锁
-            // 写锁 写锁        no 不支持相同锁
-            // 写锁  读锁       yes
-            // 读锁  读锁       yes
-            // 多个读锁  写锁    no
-            // 只有该事务获取了读锁 + 写锁 yes 升级成写锁
-            if(now.tid.equals(tid) && now.isAwarded) {
-                if(now.needLockType == LockType.Write && lockType == LockType.Read) {
-                    flag = true;
-//                    break;
-                }
+        }
+
+        Iterator<LockNode> iterator2 = nodes.listIterator();
+        while(iterator2.hasNext()){
+            LockNode now = iterator2.next();
+            if(now.tid.equals(tid) && now.needLockType == lockType) {
+                now.isAwarded = true;
+                return true;
             }
             if(now.isAwarded) {
-                if(now.needLockType == LockType.Read && lockType == LockType.Read) {
-                    flag = true;
+                // 是该事务 但肯定不是同一把锁
+                if(now.tid.equals(tid)) {
+                    // 该事务已经获得了写锁 那肯定只有一个事物能获得写锁 直接给他读锁
+                    if(now.needLockType == LockType.Write && lockType == LockType.Read) {
+                        itself.isAwarded = true;
+                        return true;
+                    }
+                    // 如果该事务获取了读锁  可能有多个事务获取了读锁 只能只有该事务获取读锁的时候进行锁升级
+                    else if(now.needLockType == LockType.Read && lockType == LockType.Write) {
+                    }
+
+                } else {
+                    if(now.needLockType == LockType.Read) {
+                        if(lockType == LockType.Read) {
+                            itself.isAwarded = true;
+                            return true;
+                        }
+                        else
+                            return false;
+                    }
+                    else
+                        return false;
                 }
+            } else {
+                return false;
             }
         }
 
-        if(!flag)
-            return false;
-        else {
-            itself.isAwarded = true;
-            return true;
-        }
+        return false;
     }
 
     // 释放某事务在某page上的锁

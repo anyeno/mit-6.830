@@ -106,13 +106,13 @@ public class BufferPool {
         int sleep_times = 0;
         while(!successLocked) {
             // 超时死锁
-            if(sleep_times == 5) {
+            if(sleep_times >= 5) {
 //                throw new TransactionAbortedException();
                 transactionComplete(tid, false);
             }
             try {
                 sleep_times += 1;
-                Thread.sleep(2000);
+                Thread.sleep(200);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
